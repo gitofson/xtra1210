@@ -46,3 +46,13 @@ SPI (XDS1 driving):
 headers on board:
 - PA12 - pin 2 PS1 heade
 - PB8 - pin1 P5 header
+----
+HOWTO build this source:
+- download [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html)
+- load xtra1210n.ioc from cloned path by git
+- select Makefile in ProjectManager->Project->toolchain inside STM32CubeMX
+- push GENERATE CODE button
+- all necessary files should be shown in your project folder obtained by git 
+- build using arm-none-eabi-gcc and make
+
+
