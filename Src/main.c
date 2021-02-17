@@ -161,12 +161,12 @@ int main(void)
     if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10)){
       // stop DC/DC step down
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-     //swtch on LEDG
+     //swtch off LEDG
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
     } else {
       // start DC/DC step down
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
-        //swtch ff LEDG
+        //swtch on LEDG
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
     }
     
