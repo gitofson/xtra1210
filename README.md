@@ -3,6 +3,8 @@ STM32F030C8T6 Firmware Created for Epever XTRA1210N MPPT solar charge controller
 
 This is firmware for MCU STM32F030 (heart of EPEVER solar charge controllers).
 ---
+WARNING: This is still under early development process. This is still for education purposes and do not expect working MPPT regulator without code changes !!! Author does not respond for possibly destroying Your device!
+---
 What is slightly implemented:
 - cs1621 chip driver for showing segments on XDS1 display
 - MODBUS RTU protocol for showing realtime data
@@ -17,8 +19,8 @@ GPIO in:
 - PB10 output Vpv/Vbat comparator, set if Vbat > Vpv
 
 GPIO out:
-- PA8  IR2106 like Hin (main DC/DC switch IRF100200b2, 100V, 68A, 8.mOhm, 77nC). Passed throuhgt two 74HC132 NANDs
-- PB13 IR2106 like Hlo (synchronous switch IRF100200b2 connected parallel with fast diode). Passed throught two 74HC132 NANDs
+- PA8  (FAN7842)[https://www.mouser.com/datasheet/2/149/FAN7842-1006985.pdf] (IR2106 like) Hin (main DC/DC switch IRF100200b2, 100V, 68A, 8.mOhm, 77nC). Passed throuhgt two 74HC132 NANDs
+- PB13 (FAN7842)[https://www.mouser.com/datasheet/2/149/FAN7842-1006985.pdf] (IR2106 like) Hlo (synchronous switch IRF100200b2 connected parallel with fast diode). Passed throught two 74HC132 NANDs
 - PB1 this enables output of previous two ones using 74HC132 logic
 - PB11 red LED on XDS1 display. Active High
 - PC13 green LED on XDS1 display. Active Low
@@ -54,5 +56,6 @@ HOWTO build this source:
 - push GENERATE CODE button
 - all necessary files should be shown in your project folder obtained by git 
 - build using arm-none-eabi-gcc and make
-
+- use J6 pin to connect [ST-LINK V2](https://www.aliexpress.com/item/1766455290.html), pins ordered from rectangled pin1 3v3, SWDIO, GND, SWCLK, RST (not needed)
+- use [stm32-for-vscode plugin](https://marketplace.visualstudio.com/items?itemName=bmd.stm32-for-vscode), [Cortex-debug plugin](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug) and  [openocd](http://openocd.org/) to flash compiled code to the solar regulator
 
