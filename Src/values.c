@@ -1,6 +1,17 @@
 #include "main.h"
 #include "values.h"
 
+uint16_t    g_ratedData[]={
+    10000, 1000,  100000|0xffff, (uint16_t)(100000>>16),
+    2400,  1000, 24000|0xffff, 24000>>16,  
+    0,0,0,0,
+    0,0,0,0
+};
+t_word      g_realTimeData[32]={0};
+uint16_t    g_realTimeStatus[2]={0};
+uint16_t    g_statisticalParameters[32]={0};
+t_word      g_settings[32];
+
 t_word crc16(uint8_t  *data, uint8_t length)
 { 
     uint8_t i, j;
@@ -49,28 +60,75 @@ void worldToByteCp(uint8_t * buff, t_word * w,  uint8_t nWords){
         buff[2*i+1]=w[i].byte.lo;
     }
 }
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+//do not use thos callback. Lets Tx of sender be done first.
+/*
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+    g_readyToSend = 0xff;
+}*/
+void processMessage(UART_HandleTypeDef *huart)
 {
+    uint8_t bufferToBeReceivedIdx = 0;
+    uint8_t n_restBytes = RECEIVED_DATA_MIN_LENGTH;
     uint8_t length;
     t_word crc;
-    crc = crc16(g_request.buff, 6);
-    if(crc.word == g_request.req.crc.word) {
-        length =  2*g_request.req.rest.data.length.byte.hi;
-        switch(g_request.req.rest.data.address.byte.lo ){
-            case 0x31:
-                memcpy(g_tx_buff, g_request.buff, 2);
-                g_tx_buff[2] = length;
-                worldToByteCp(g_tx_buff+3, g_realTimeData ,length/2);
-                break;
+    //__HAL_UART_ENABLE_IT(huart, UART_IT_IDLE);
+    if(g_request.req.slave_id == DEFAULT_SLAVE_ID){
+        crc = crc16(g_request.buff, 6);
+        if(crc.word == g_request.req.crc.word) {
+            length =  2*g_request.req.rest.data.length.byte.hi;
+            switch(g_request.req.modbus_function_code){
+                case MODBUS_FC_READ_INPUT_REGISTERS:
+                case MODBUS_FC_READ_INPUT_REGISTERS_ALT:
+                    switch(g_request.req.rest.data.address.byte.lo ){
+                        case 0x30:
+                            memcpy(g_tx_buff, g_request.buff, 2);
+                            g_tx_buff[2] = length;
+                            worldToByteCp(g_tx_buff+3, g_ratedData ,length/2);
+                            break;
+                        case 0x31:
+                            memcpy(g_tx_buff, g_request.buff, 2);
+                            g_tx_buff[2] = length;
+                            worldToByteCp(g_tx_buff+3, g_realTimeData ,length/2);
+                            break;
+                    }
+                    break;
+                case MODBUS_FC_READ_DEVICE_INFO:
+                    memcpy(g_tx_buff, g_request.buff, 4);
+                    g_tx_buff[5]=0;
+                    g_tx_buff[6]=g_request.req.rest.info.code_object;
+                    g_tx_buff[7]=1;
+                    g_tx_buff[8]=g_request.req.rest.info.code_object;
+                    switch(g_request.req.rest.info.code_object){
+                        case 0:
+                            g_tx_buff[9]=sizeof(INFO_VENDOR_NAME)-1;
+                            memcpy(g_tx_buff+10, INFO_VENDOR_NAME, sizeof(INFO_VENDOR_NAME));
+                            length=10-3+sizeof(INFO_VENDOR_NAME)-1;
+                            break;
+                        case 1:
+                            g_tx_buff[9]=sizeof(INFO_PRODUCT_CODE)-1;
+                            memcpy(g_tx_buff+10, INFO_PRODUCT_CODE, sizeof(INFO_PRODUCT_CODE));
+                            length=10-3+sizeof(INFO_PRODUCT_CODE)-1;
+                            break;
+                        case 2:
+                            g_tx_buff[9]=sizeof(INFO_VERSION)-1;
+                            memcpy(g_tx_buff+10, INFO_VERSION, sizeof(INFO_VERSION));
+                            length=10-3+sizeof(INFO_VERSION)-1;
+                            break;
+                        default:
+                            length=10-3;
+                            break;
+                    }
+            }
+            crc = crc16(g_tx_buff, length+3);
+            g_tx_buff[length+3] = crc.byte.lo;
+            g_tx_buff[length+4] = crc.byte.hi;
+            g_tx_buff_length=length+5;
+            //g_readyToSend=0xff;
+            //while(!g_uart_free){
+
+            //}
+            //while(!g_uart_free);
         }
-        crc = crc16(g_tx_buff, length+3);
-        g_tx_buff[length+3] = crc.byte.lo;
-        g_tx_buff[length+4] = crc.byte.hi;
     }
-    //while(!g_uart_free){
-    g_tx_buff_length=length+5;
-    g_readyToSend=0xff;
-    //}
-    //while(!g_uart_free);
-    HAL_UART_Receive_DMA(&huart1, g_request.buff, sizeof(g_request.buff));
+    HAL_UART_Receive_DMA(huart, g_request.buff+bufferToBeReceivedIdx, n_restBytes);
 }

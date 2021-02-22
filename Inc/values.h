@@ -1,9 +1,13 @@
+#ifndef __VALUES_H
+#define __VALUES_H
 #define DEFAULT_SLAVE_ID 2
 #define RECEIVED_DATA_MAX_LENGTH 8
+#define RECEIVED_DATA_MIN_LENGTH 8
 #define TRASNSMIT_DATA_MAX_LENGTH 128
 
 #define INFO_VENDOR_NAME "EPsolar Tech co., LtdTriRon1210"
-#define INFO_PRODUCT_CODE "pic17f1705dcac"
+//#define INFO_VENDOR_NAME "https://github.com/gitofson/xtra1210"
+#define INFO_PRODUCT_CODE "xtra1210n-xds1"
 #define INFO_VERSION "00.00"
 
 /* Modbus function codes */
@@ -11,6 +15,7 @@
 #define MODBUS_FC_READ_DISCRETE_INPUTS      0x02
 #define MODBUS_FC_READ_HOLDING_REGISTERS    0x03
 #define MODBUS_FC_READ_INPUT_REGISTERS      0x04
+#define MODBUS_FC_READ_INPUT_REGISTERS_ALT  0x43
 #define MODBUS_FC_WRITE_SINGLE_COIL         0x05
 #define MODBUS_FC_WRITE_SINGLE_REGISTER     0x06
 #define MODBUS_FC_READ_EXCEPTION_STATUS     0x07
@@ -29,6 +34,17 @@
 #define VAL_RTD_BATTERY_CURRENT             0x05
 #define VAL_RTD_BATTERY_POWER_LO            0x06
 #define VAL_RTD_BATTERY_POWER_HI            0x07
+
+#define VAL_RD_ARRAY_VOLTAGE               0x00
+#define VAL_RD_ARRAY_CURRENT               0x01
+#define VAL_RD_ARRAY_POWER_LO              0x02
+#define VAL_RD_ARRAY_POWER_HI              0x03
+#define VAL_RD_BATTERY_VOLTAGE             0x04
+#define VAL_RD_BATTERY_CURRENT             0x05
+#define VAL_RD_BATTERY_POWER_LO            0x06
+#define VAL_RD_BATTERY_POWER_HI            0x07
+#define VAL_RD_CHARGING_MODE               0x08
+#define VAL_RD_LOAD_CURRENT                0x0E
 
 
 typedef union _word {
@@ -61,14 +77,29 @@ typedef union _request {
 } t_request;
 t_request g_request;
 
+#define DMA_RX_BUFFER_SIZE          64
+//#define DMA_RX_BUFFER_SIZE          sizeof(g_request)
+uint8_t DMA_RX_Buffer[DMA_RX_BUFFER_SIZE];
+//#define DMA_RX_Buffer               (uint8_t*) g_request
 extern uint8_t g_readyToSend;
 extern uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 extern uint8_t g_tx_buff_length;
 extern uint8_t g_uart_free;
-extern UART_HandleTypeDef huart1;
+//extern UART_HandleTypeDef huart1;
 
+/*
+Following are other examples of various types of integer literals −
+
+85         decimal 
+0213       octal 
+0x4b       hexadecimal 
+30         int 
+30u        unsigned int 
+30l        long
+30ul       unsigned long
+*/
 //getRatedData (modbus_t *ctx)
-    uint16_t g_ratedData[16];
+    extern uint16_t g_ratedData[16];
     /*
     int         registerAddress = 0x3000;
     int         numBytes = 0x09;                  // 0x0A and up gives 'illegal data address' error
@@ -104,7 +135,7 @@ Rated output current of load 300E A 100
 
     */
 //getRealTimeData:
-    t_word g_realTimeData[32];
+    extern t_word g_realTimeData[32];
     /*
     int         registerAddress = 0x3100;
     uint8_t     numBytes = 0x13;                  // 0x14 and up gives 'illegal data address' error
@@ -145,7 +176,7 @@ Rated output current of load 300E A 100
     */
 
 //getRealTimeStatus (modbus_t *ctx)
-    uint16_t    g_realTimeStatus[2];
+    extern uint16_t    g_realTimeStatus[2];
     /*
     int         registerAddress = 0x3200;
     int         numBytes = 0x2;
@@ -176,7 +207,7 @@ Rated output current of load 300E A 100
      */
 
 //getStatisicalParameters (modbus_t *ctx)
-    uint16_t    g_statisticalParameters[32];
+    extern uint16_t    g_statisticalParameters[32];
 /*
     int         registerAddress = 0x3300;
     int         numBytes = 0x1E;                  
@@ -233,7 +264,7 @@ Rated output current of load 300E A 100
     
 
     //getSettings (modbus_t *ctx)
-    g_settings[32];
+    extern t_word g_settings[32];
 /*
     int         registerAddress = 0x9000;
     int         numBytes = 0x0F;                    // 0x10 and up gives 'illegal data address' error
@@ -260,8 +291,7 @@ Rated output current of load 300E A 100
     uint16_t    realTimeClock1      = buffer[ 0x13 ];
     uint16_t    realTimeClock2      = buffer[ 0x14 ];
     uint16_t    realTimeClock3      = buffer[ 0x15 ];
-    */
-
-   
-
-   
+    */   
+t_word crc16(uint8_t*, uint8_t);
+void processMessage(UART_HandleTypeDef*);
+#endif

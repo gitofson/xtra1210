@@ -1,3 +1,5 @@
+#ifndef __CS1621_H
+#define __CS1621_H
 extern SPI_HandleTypeDef hspi1;
 enum  cs1621_unit{
     CS1621_VOLTAGE,
@@ -20,3 +22,4 @@ void cs1621_showValue(int16_t);
 void cs1621_test(uint8_t);
 void cs1621_showUnits(enum cs1621_unit);
 void cs1621_showSource(enum cs1621_source);
+#endif

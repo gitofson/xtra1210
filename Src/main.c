@@ -54,10 +54,16 @@ UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
+
+
+#define UART_BUFFER_SIZE            256
+uint8_t UART_Buffer[UART_BUFFER_SIZE];
+
 uint8_t g_uart_free=0xff;
 uint8_t g_readyToSend=0;
 uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 uint8_t g_tx_buff_length;
+
 
 
 /* USER CODE END PV */
@@ -135,7 +141,21 @@ int main(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
   //swtch off LEDR
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
-  HAL_UART_Receive_DMA(&huart1, g_request.buff, sizeof(g_request.buff));
+
+  __HAL_UART_CLEAR_IDLEFLAG(&huart1);
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);   // enable idle line interrupt
+//__HAL_DMA_ENABLE_IT (&hdma_usart1_rx, DMA_IT_TC);  // enable DMA Tx cplt interrupt
+
+
+
+
+  HAL_UART_Receive_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
+ // HAL_UART_Receive_DMA (&huart1, DMA_RX_Buffer, DMA_RX_BUFFER_SIZE);
+
+
+  //hdma_usart1_rx.Instance->CCR &= ~DMA_CCR_HTIE;  // disable uart half tx interru
+
+
   HAL_Delay(2000);
   
 
@@ -231,6 +251,7 @@ int main(void)
     if(g_readyToSend)
     {
       //HAL_Delay(300);
+      processMessage(&huart1);
       g_readyToSend=0;
       g_uart_free=0;
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
