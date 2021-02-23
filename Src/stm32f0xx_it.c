@@ -60,7 +60,7 @@ extern DMA_HandleTypeDef hdma_adc;
 extern DMA_HandleTypeDef hdma_usart1_rx;
 extern UART_HandleTypeDef huart1;
 /* USER CODE BEGIN EV */
-extern uint8_t g_readyToSend;
+extern uint8_t g_isDataReceived;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -189,7 +189,7 @@ huart2.hdmarx->Instance->CCR |= DMA_CCR_EN;
     if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) == SET)
   {
     __HAL_UART_CLEAR_FLAG(&huart1, UART_FLAG_IDLE);
-    g_readyToSend = 0xff;
+    g_isDataReceived = 0xff;
   }
   /* USER CODE END USART1_IRQn 1 */
 }

@@ -60,6 +60,7 @@ DMA_HandleTypeDef hdma_usart1_rx;
 uint8_t UART_Buffer[UART_BUFFER_SIZE];
 
 uint8_t g_uart_free=0xff;
+uint8_t g_isDataReceived=0;
 uint8_t g_readyToSend=0;
 uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 uint8_t g_tx_buff_length;
@@ -248,10 +249,11 @@ int main(void)
     sprintf(buffer+strlen(buffer),hello);
     //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
     //HAL_UART_Transmit_IT(&huart1, buffer, strlen(buffer));
-    if(g_readyToSend)
-    {
-      //HAL_Delay(300);
+    if(g_isDataReceived){
+      g_isDataReceived = 0;
       processMessage(&huart1);
+    }
+    if(g_readyToSend){
       g_readyToSend=0;
       g_uart_free=0;
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
@@ -483,26 +485,12 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-  sTime.Hours = 0x6;
-  sTime.Minutes = 0x3;
-  sTime.Seconds = 0x0;
-  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_SUB1H;
-  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
-  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
-  sDate.Month = RTC_MONTH_FEBRUARY;
-  sDate.Date = 0x17;
-  sDate.Year = 0x0;
 
-  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN RTC_Init 2 */
-
+  if (rtcSynchroSetTime() != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE END RTC_Init 2 */
 
 }

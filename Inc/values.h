@@ -46,6 +46,10 @@
 #define VAL_RD_CHARGING_MODE               0x08
 #define VAL_RD_LOAD_CURRENT                0x0E
 
+#define VAL_SET_RTC1                       0x13
+#define VAL_SET_RTC2                       0x14
+#define VAL_SET_RTC3                       0x15
+
 
 typedef union _word {
 	struct {
@@ -81,7 +85,9 @@ t_request g_request;
 //#define DMA_RX_BUFFER_SIZE          sizeof(g_request)
 uint8_t DMA_RX_Buffer[DMA_RX_BUFFER_SIZE];
 //#define DMA_RX_Buffer               (uint8_t*) g_request
+extern RTC_HandleTypeDef hrtc;
 extern uint8_t g_readyToSend;
+extern uint8_t g_isDataReceived;
 extern uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 extern uint8_t g_tx_buff_length;
 extern uint8_t g_uart_free;
@@ -99,7 +105,7 @@ Following are other examples of various types of integer literals −
 30ul       unsigned long
 */
 //getRatedData (modbus_t *ctx)
-    extern uint16_t g_ratedData[16];
+    extern t_word g_ratedData[16];
     /*
     int         registerAddress = 0x3000;
     int         numBytes = 0x09;                  // 0x0A and up gives 'illegal data address' error
@@ -294,4 +300,6 @@ Rated output current of load 300E A 100
     */   
 t_word crc16(uint8_t*, uint8_t);
 void processMessage(UART_HandleTypeDef*);
+HAL_StatusTypeDef rtcSynchroGetTime();
+HAL_StatusTypeDef rtcSynchroSetTime();
 #endif
