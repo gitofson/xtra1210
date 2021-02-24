@@ -166,6 +166,11 @@ void processMessage(UART_HandleTypeDef *huart)
                             g_tx_buff[2] = length;
                             worldToByteCp(g_tx_buff+3, g_realTimeData + g_request.req.rest.data.address.byte.hi, length/2);
                             break;
+                        case 0x33:
+                            memcpy(g_tx_buff, g_request.buff, 2);
+                            g_tx_buff[2] = length;
+                            worldToByteCp(g_tx_buff+3, g_statisticalParameters + g_request.req.rest.data.address.byte.hi, length/2);
+                            break;                        
                     }
                     break;
                 case MODBUS_FC_READ_HOLDING_REGISTERS:

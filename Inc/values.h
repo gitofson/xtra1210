@@ -46,6 +46,9 @@
 #define VAL_RD_CHARGING_MODE               0x08
 #define VAL_RD_LOAD_CURRENT                0x0E
 
+#define VAL_STAT_GENERATED_ENERGY_TODAY_LO 0x0C
+#define VAL_STAT_GENERATED_ENERGY_TODAY_HI 0x0D
+
 #define VAL_SET_RTC1                       0x13
 #define VAL_SET_RTC2                       0x14
 #define VAL_SET_RTC3                       0x15

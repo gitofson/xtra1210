@@ -49,6 +49,7 @@ RTC_HandleTypeDef hrtc;
 SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
@@ -64,6 +65,7 @@ uint8_t g_isDataReceived=0;
 uint8_t g_readyToSend=0;
 uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 uint8_t g_tx_buff_length;
+uint16_t g_adcVals[11];
 
 
 
@@ -78,6 +80,7 @@ static void MX_TIM1_Init(void);
 static void MX_ADC_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_RTC_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -96,7 +99,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
   uint8_t hello[]="HELLO!\r\n";
   uint8_t buffer[256];
-  uint16_t x[10], a, b, pwm, pwm_opt;
+  uint16_t a, b, pwm, pwm_opt;
   uint8_t i,j=0, isPwmSet=0;
   t_word cnt;
   uint32_t power, power_max=0;
@@ -127,6 +130,7 @@ int main(void)
   MX_ADC_Init();
   MX_SPI1_Init();
   MX_RTC_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
   //swtch on backlight
@@ -145,9 +149,10 @@ int main(void)
 
   __HAL_UART_CLEAR_IDLEFLAG(&huart1);
   __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);   // enable idle line interrupt
-//__HAL_DMA_ENABLE_IT (&hdma_usart1_rx, DMA_IT_TC);  // enable DMA Tx cplt interrupt
+      //__HAL_DMA_ENABLE_IT (&hdma_usart1_rx, DMA_IT_TC);  // enable DMA Tx cplt interrupt
 
-
+  //start TIM3 (1 second timer for energy computation)
+  HAL_TIM_Base_Start_IT(&htim3);
 
 
   HAL_UART_Receive_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
@@ -176,7 +181,7 @@ int main(void)
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12); 
     //
     //cs1621_test(cnt);
-    HAL_ADC_Start_DMA(&hadc, x, 11);
+    HAL_ADC_Start_DMA(&hadc, g_adcVals, 11);
     HAL_Delay(25);
     HAL_ADC_Stop_DMA(&hadc);
     if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10)){
@@ -191,12 +196,7 @@ int main(void)
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
     }
     
-    g_realTimeData[VAL_RTD_ARRAY_VOLTAGE].word = x[0]*4962/1000;
-    g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word = x[1]*1967/1000;
-    g_realTimeData[VAL_RTD_BATTERY_CURRENT].word = (((int16_t) (x[5] - 0x170)))*40/100;
-    power=g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word*g_realTimeData[VAL_RTD_BATTERY_CURRENT].word/100;
-    g_realTimeData[VAL_RTD_BATTERY_POWER_HI].word = power>>16;
-    g_realTimeData[VAL_RTD_BATTERY_POWER_LO].word = (uint16_t)(power&=0xFFFF);
+
     if(power > power_max){
       power_max=power;
       pwm_opt=pwm;
@@ -206,19 +206,19 @@ int main(void)
     switch(cnt.byte.hi % 3){
       case 0:
     
-      cs1621_showValue(x[1]*1967/10000);
+      cs1621_showValue(g_adcVals[1]*1967/10000);
       cs1621_showUnits(CS1621_VOLTAGE);
       cs1621_showSource(CS1621_BATTERY);
     break;
 
     case 1:
-      cs1621_showValue(x[0]*4962/10000);
+      cs1621_showValue(g_adcVals[0]*4962/10000);
       cs1621_showUnits(CS1621_VOLTAGE);
       cs1621_showSource(CS1621_PV);
     break;
     
     case 2:
-      cs1621_showValue((((int16_t) (x[5] - 0x170)))*40/1000);
+      cs1621_showValue((((int16_t) (g_adcVals[5] - 0x170)))*40/1000);
       //cs1621_showValue(-555);
       cs1621_showUnits(CS1621_CURRENT);
       cs1621_showSource(CS1621_BATTERY);
@@ -231,8 +231,9 @@ int main(void)
       pwm=0;
       isPwmSet=0;
     }
-    
+    /*
     strcpy(buffer,"");
+    
     for (i = 0; i<11; i++) {
       //HAL_Delay(100);
      // HAL_ADC_PollForConversion(&hadc, 100);
@@ -240,15 +241,17 @@ int main(void)
       //while(!g_uart_free);
       //g_uart_free=0;
       //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-      sprintf(buffer+strlen(buffer), "%01d:%03x ",i , x[i]);
+      sprintf(buffer+strlen(buffer), "%01d:%03x ",i , g_adcVals[i]);
       //HAL_UART_Transmit_IT(&huart1, buffer, strlen(buffer));
     }
+    
     //HAL_ADC_Stop(&hadc);
     while(!g_uart_free);
     //g_uart_free=0;
     sprintf(buffer+strlen(buffer),hello);
     //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
     //HAL_UART_Transmit_IT(&huart1, buffer, strlen(buffer));
+    */
     if(g_isDataReceived){
       g_isDataReceived = 0;
       processMessage(&huart1);
@@ -485,7 +488,24 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
+  sTime.Hours = 0x6;
+  sTime.Minutes = 0x3;
+  sTime.Seconds = 0x0;
+  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_SUB1H;
+  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
+  sDate.Month = RTC_MONTH_FEBRUARY;
+  sDate.Date = 0x17;
+  sDate.Year = 0x0;
 
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN RTC_Init 2 */
   if (rtcSynchroSetTime() != HAL_OK)
   {
@@ -607,6 +627,51 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 2 */
   HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 48000-1;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 1000-1;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -739,7 +804,25 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
   g_uart_free=0xff;
 }
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  static uint32_t energy=0; //[mW * s]
+  uint32_t tmp;
+  if( htim == &htim3 ){
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4);
+    g_realTimeData[VAL_RTD_ARRAY_VOLTAGE].word = g_adcVals[0]*4962/1000;
+    g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word = g_adcVals[1]*1967/1000;
+    //g_realTimeData[VAL_RTD_BATTERY_CURRENT].word = (((int16_t) (g_adcVals[5] - 0x170)))*40/100;
+    g_realTimeData[VAL_RTD_BATTERY_CURRENT].word = (((int16_t) (g_adcVals[5] - 0x160)))*40/100;
+    tmp=g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word*g_realTimeData[VAL_RTD_BATTERY_CURRENT].word/100;
+    g_realTimeData[VAL_RTD_BATTERY_POWER_HI].word = tmp >> 16;
+    g_realTimeData[VAL_RTD_BATTERY_POWER_LO].word = (uint16_t)(tmp &= 0xFFFF);
+    energy += g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word * g_adcVals[1]*1967/100;
+    tmp = energy/36;
+    g_statisticalParameters[VAL_STAT_GENERATED_ENERGY_TODAY_LO] = tmp &=0xffff;
+    g_statisticalParameters[VAL_STAT_GENERATED_ENERGY_TODAY_HI] = tmp >> 16;
+  }
+}
 /* USER CODE END 4 */
 
 /**
