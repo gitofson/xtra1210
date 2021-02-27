@@ -1,6 +1,9 @@
 #include "main.h"
 #include "values.h"
+#include "adc.h"
+#include "mppt.h"
 
+//extern uint16_t g_adcVals[N_ADC_CHANNELS];
 t_word    g_ratedData[]={
     {.word=10000}, {.word=1000}, {.word=100000|0xffff}, {.word=(uint16_t)(100000>>16)},
     {.word=2400}, {.word=1000}, {.word=24000|0xffff}, {.word=24000>>16},  
@@ -222,4 +225,28 @@ void processMessage(UART_HandleTypeDef *huart)
         }
     }
     HAL_UART_Receive_DMA(huart, g_request.buff+bufferToBeReceivedIdx, n_restBytes);
+}
+void updateRealTimeValues(){
+    static uint32_t energy=0; //[mW * s]
+    uint32_t tmp;
+    g_realTimeData[VAL_RTD_ARRAY_VOLTAGE].word = (g_adcVals[ADC_ARRAY_VOLTAGE_IDX]>>2)*4962/1000;
+    g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word = (g_adcVals[ADC_BATTERY_VOLTAGE_IDX]>>2)*1967/1000;
+    //g_realTimeData[VAL_RTD_BATTERY_CURRENT].word = (((int16_t) (g_adcVals[5] - 0x170)))*40/100;
+    g_realTimeData[VAL_RTD_BATTERY_CURRENT].word = (((int16_t) ((g_adcVals[ADC_BATTERY_CURRENT_IDX]>>2) - 0x160)))*40/100;
+    tmp=g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word*g_realTimeData[VAL_RTD_BATTERY_CURRENT].word/100;
+    g_realTimeData[VAL_RTD_BATTERY_POWER_HI].word = tmp >> 16;
+    g_realTimeData[VAL_RTD_BATTERY_POWER_LO].word = (uint16_t)(tmp &= 0xFFFF);
+    energy += g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word * (g_adcVals[ADC_BATTERY_VOLTAGE_IDX]>>2)*1967/100;
+    tmp = energy/36000;
+    g_statisticalParameters[VAL_STAT_GENERATED_ENERGY_TODAY_LO] = tmp &=0xffff;
+    g_statisticalParameters[VAL_STAT_GENERATED_ENERGY_TODAY_HI] = tmp >> 16;
+}
+uint16_t getLowPowerPWM(){
+    uint16_t ret;
+    ret = (MPPT_PWM_MAX_VALUE*((g_adcVals[ADC_BATTERY_VOLTAGE_IDX]>>2)*1967)) / ((g_adcVals[ADC_ARRAY_VOLTAGE_IDX]>>2) *4692);
+    if(ret>MPPT_PWM_MIN_VALUE){
+        return ret;
+    } else {
+        return MPPT_PWM_MIN_VALUE;
+    }
 }

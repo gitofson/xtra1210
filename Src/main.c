@@ -24,6 +24,9 @@
 /* USER CODE BEGIN Includes */
 #include "cs1621.h"
 #include "values.h"
+#include "mppt.h"
+#include "adc.h"
+#include "buttons.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,7 +68,7 @@ uint8_t g_isDataReceived=0;
 uint8_t g_readyToSend=0;
 uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 uint8_t g_tx_buff_length;
-uint16_t g_adcVals[11];
+uint16_t g_adcVals[N_ADC_CHANNELS]={0};
 
 
 
@@ -99,8 +102,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
   uint8_t hello[]="HELLO!\r\n";
   uint8_t buffer[256];
-  uint16_t a, b, pwm, pwm_opt;
-  uint8_t i,j=0, isPwmSet=0;
+  uint8_t i,j=0, isPwmSet=0, valueToShow=0;
   t_word cnt;
   uint32_t power, power_max=0;
 
@@ -165,76 +167,103 @@ int main(void)
   HAL_Delay(2000);
   
 
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
-
   cs1621_init();
-
+  ADC_Start();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   cnt.word=0;
-  pwm=0;
   while (1)
   {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12); 
     //
     //cs1621_test(cnt);
-    HAL_ADC_Start_DMA(&hadc, g_adcVals, 11);
-    HAL_Delay(25);
-    HAL_ADC_Stop_DMA(&hadc);
-    if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10)){
-      // stop DC/DC step down
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-     //swtch off LEDG
-      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-    } else {
-      // start DC/DC step down
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
-        //swtch on LEDG
-      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-    }
-    
-
-    if(power > power_max){
-      power_max=power;
-      pwm_opt=pwm;
-      
-    }
+    //ADC_Start();
+    //HAL_Delay(25);
+    //HAL_ADC_Stop_DMA(&hadc);
+    if(MPPT_Start()==MPPT_OK){
+      if(MPPT_Adjust(+1)){
+        MPPT_Adjust(-1);
+      };
+    };
     //battery voltage to display :
-    switch(cnt.byte.hi % 3){
-      case 0:
-    
-      cs1621_showValue(g_adcVals[1]*1967/10000);
+    switch(valueToShow){
+    case 0:
+      //cs1621_showValue(g_adcVals[1]*1967/10000);
+      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word/10);
       cs1621_showUnits(CS1621_VOLTAGE);
       cs1621_showSource(CS1621_BATTERY);
-    break;
-
+      break;
     case 1:
       cs1621_showValue(g_adcVals[0]*4962/10000);
+      cs1621_showValue(g_realTimeData[VAL_RTD_ARRAY_VOLTAGE].word/10);
       cs1621_showUnits(CS1621_VOLTAGE);
       cs1621_showSource(CS1621_PV);
-    break;
-    
+      break;
     case 2:
-      cs1621_showValue((((int16_t) (g_adcVals[5] - 0x170)))*40/1000);
+      //cs1621_showValue((((int16_t) (g_adcVals[5] - 0x170)))*40/1000);
+      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_CURRENT].word/10);
       //cs1621_showValue(-555);
       cs1621_showUnits(CS1621_CURRENT);
       cs1621_showSource(CS1621_BATTERY);
-      
+      break;
+    case 3:
+      cs1621_showValue(MPPT_GetPwm());
+      cs1621_showUnits(CS1621_UNIT_NA);
+      cs1621_showSource(CS1621_TYPE);
       break;
     }
-    if(! HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15)){
-      HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); 
+    /*
+   if(cnt.word<12000){
+      cs1621_showValue(MPPT_GetPwm());
+      cs1621_showUnits(CS1621_UNIT_NA);
+      cs1621_showSource(CS1621_TYPE);
+
+   } else {
+      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_CURRENT].word/10);
+      //cs1621_showValue(-555);
+      cs1621_showUnits(CS1621_CURRENT);
+      cs1621_showSource(CS1621_BATTERY);
+   }*/
+
+    //SELECT BUTTON
+    if(g_buttons.eventButt15pressed){
+      g_buttons.eventButt15pressed=0;
+      if(++valueToShow > 3){
+        valueToShow = 0;
+      };
+      /*
+      HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_SET); 
       power_max=0;
-      pwm=0;
+      pwm=249-1;
       isPwmSet=0;
+      */
+
     }
+    //WTF
+    if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7)){
+      //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+    } else {
+      //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+    }
+    //ENTER BUTTON
+    if(g_buttons.eventButt14pressed){
+      g_buttons.eventButt14pressed=0;
+      //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); 
+      //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET); 
+      //power_max=0;
+      //isPwmSet=0;
+      //if(++pwm > MPPT_MAX_VALUE){
+      //  pwm = MPPT_MAX_VALUE;
+      //};
+    }
+    
     /*
     strcpy(buffer,"");
     
-    for (i = 0; i<11; i++) {
+    for (i = 0; i<N_ADC_CHANNELS; i++) {
       //HAL_Delay(100);
      // HAL_ADC_PollForConversion(&hadc, 100);
       //x[i]=HAL_ADC_GetValue(&hadc);
@@ -247,10 +276,10 @@ int main(void)
     
     //HAL_ADC_Stop(&hadc);
     while(!g_uart_free);
-    //g_uart_free=0;
+    g_uart_free=0;
     sprintf(buffer+strlen(buffer),hello);
-    //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-    //HAL_UART_Transmit_IT(&huart1, buffer, strlen(buffer));
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+    HAL_UART_Transmit_IT(&huart1, buffer, strlen(buffer));
     */
     if(g_isDataReceived){
       g_isDataReceived = 0;
@@ -262,17 +291,19 @@ int main(void)
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
       HAL_UART_Transmit_IT(&huart1, g_tx_buff, g_tx_buff_length);
     }
-    cnt.word++;
+    if(cnt.word++ > 15000){
+      cnt.word=0;
+    };
+    /*
     if(isPwmSet){
       __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, pwm_opt);
     } else {
       __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, pwm);
-    }
-    pwm++;
-    if(pwm>=250){
-      isPwmSet=0xff;
-      pwm=0;
-    } 
+    }*/
+    //__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, pwm);
+    /*if(!(cnt.word % 10)){
+      pwm--;
+    }*/
   }
     /* USER CODE END WHILE */
 
@@ -603,11 +634,11 @@ static void MX_TIM1_Init(void)
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 200;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_SET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_SET;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -748,8 +779,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1|GPIO_PIN_11|GPIO_PIN_4|GPIO_PIN_6
-                          |GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_11|GPIO_PIN_4
+                          |GPIO_PIN_6|GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
@@ -764,24 +795,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB1 PB11 PB4 PB6
-                           PB8 PB9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_11|GPIO_PIN_4|GPIO_PIN_6
-                          |GPIO_PIN_8|GPIO_PIN_9;
+  /*Configure GPIO pins : PB1 PB2 PB11 PB4
+                           PB6 PB8 PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_11|GPIO_PIN_4
+                          |GPIO_PIN_6|GPIO_PIN_8|GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB10 PB7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_7;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  /*Configure GPIO pin : PB10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB14 PB15 */
   GPIO_InitStruct.Pin = GPIO_PIN_14|GPIO_PIN_15;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -791,6 +822,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 
 }
 
@@ -806,21 +847,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  static uint32_t energy=0; //[mW * s]
-  uint32_t tmp;
   if( htim == &htim3 ){
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4);
-    g_realTimeData[VAL_RTD_ARRAY_VOLTAGE].word = g_adcVals[0]*4962/1000;
-    g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word = g_adcVals[1]*1967/1000;
-    //g_realTimeData[VAL_RTD_BATTERY_CURRENT].word = (((int16_t) (g_adcVals[5] - 0x170)))*40/100;
-    g_realTimeData[VAL_RTD_BATTERY_CURRENT].word = (((int16_t) (g_adcVals[5] - 0x160)))*40/100;
-    tmp=g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word*g_realTimeData[VAL_RTD_BATTERY_CURRENT].word/100;
-    g_realTimeData[VAL_RTD_BATTERY_POWER_HI].word = tmp >> 16;
-    g_realTimeData[VAL_RTD_BATTERY_POWER_LO].word = (uint16_t)(tmp &= 0xFFFF);
-    energy += g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word * g_adcVals[1]*1967/100;
-    tmp = energy/36;
-    g_statisticalParameters[VAL_STAT_GENERATED_ENERGY_TODAY_LO] = tmp &=0xffff;
-    g_statisticalParameters[VAL_STAT_GENERATED_ENERGY_TODAY_HI] = tmp >> 16;
+      updateRealTimeValues();
   }
 }
 /* USER CODE END 4 */

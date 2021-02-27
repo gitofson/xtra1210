@@ -305,4 +305,6 @@ t_word crc16(uint8_t*, uint8_t);
 void processMessage(UART_HandleTypeDef*);
 HAL_StatusTypeDef rtcSynchroGetTime();
 HAL_StatusTypeDef rtcSynchroSetTime();
+void updateRealTimeValues();
+uint16_t getLowPowerPWM();
 #endif

@@ -91,7 +91,7 @@ void cs1621_showSource(enum cs1621_source source){
             buff = 0x4;
             break;
         default:
-        break;      
+            break;      
     }
     send8bitVal(0x14c, buff);
 }
@@ -126,6 +126,20 @@ void cs1621_showUnits(enum cs1621_unit unit){
     send8bitVal(0x144, buff);
 }
 
+void cs1621_showSymbol(enum cs1621_symbol symbol){
+    //uint16_t buff=0x14D0; //!, PV, SOC, NA
+    uint8_t buff=0;
+
+    switch(symbol){
+        case CS1621_EXCLAMATION:
+            buff = 0x01;
+            break;
+        default:
+            break;      
+    }
+    send8bitVal(0x14d, buff);
+
+}
 void cs1621_test(uint8_t val){
     uint8_t i=0;
     uint16_t buff[2];
