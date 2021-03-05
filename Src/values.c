@@ -5,8 +5,14 @@
 
 //extern uint16_t g_adcVals[N_ADC_CHANNELS];
 t_word    g_ratedData[]={
-    {.word=10000}, {.word=1000}, {.word=100000|0xffff}, {.word=(uint16_t)(100000>>16)},
-    {.word=2400}, {.word=1000}, {.word=24000|0xffff}, {.word=24000>>16},  
+    {.word=10000},
+    {.word=1000},
+    {.word=25000 & 0xffff},  //PV array power LO halfword
+    {.word=(25000>>16)},     //PV array power HI halfword
+    {.word=2400},
+    {.word=1000},
+    {.word=25000 & 0xffff},    //PV array power LO halfword
+    {.word=24000>>16},       //PV array power HI halfword
     0,0,0,0,
     0,0,0,0
 };
