@@ -54,14 +54,21 @@
 #define VAL_SET_RTC3                       0x15
 
 
-typedef union _word {
+typedef union _halfWord {
 	struct {
 		unsigned char lo;
 		unsigned char hi;
 	}	byte;
-	unsigned short	word;
-} t_word;
+	unsigned short	halfWord;
+} halfWord_t;
 
+typedef union _word {
+    struct {
+        halfWord_t hwLo;
+        halfWord_t hwHi;
+    } halfWord;
+    uint32_t word;
+} word_t;
 
 typedef union _request {
     struct _req {
@@ -74,11 +81,11 @@ typedef union _request {
                 uint8_t code_object;
             } info;
             struct _data {
-                t_word address;
-                t_word length;
+                halfWord_t address;
+                halfWord_t length;
             } data;
         } rest;
-        t_word crc;
+        halfWord_t crc;
     } req;
 	uint8_t buff[sizeof(struct _req)];
 } t_request;
@@ -108,7 +115,7 @@ Following are other examples of various types of integer literals −
 30ul       unsigned long
 */
 //getRatedData (modbus_t *ctx)
-    extern t_word g_ratedData[16];
+    extern halfWord_t g_ratedData[16];
     /*
     int         registerAddress = 0x3000;
     int         numBytes = 0x09;                  // 0x0A and up gives 'illegal data address' error
@@ -144,7 +151,7 @@ Rated output current of load 300E A 100
 
     */
 //getRealTimeData:
-    extern t_word g_realTimeData[32];
+    extern halfWord_t g_realTimeData[32];
     /*
     int         registerAddress = 0x3100;
     uint8_t     numBytes = 0x13;                  // 0x14 and up gives 'illegal data address' error
@@ -273,7 +280,7 @@ Rated output current of load 300E A 100
     
 
     //getSettings (modbus_t *ctx)
-    extern t_word g_settings[32];
+    extern halfWord_t g_settings[32];
 /*
     int         registerAddress = 0x9000;
     int         numBytes = 0x0F;                    // 0x10 and up gives 'illegal data address' error
@@ -301,10 +308,9 @@ Rated output current of load 300E A 100
     uint16_t    realTimeClock2      = buffer[ 0x14 ];
     uint16_t    realTimeClock3      = buffer[ 0x15 ];
     */   
-t_word crc16(uint8_t*, uint8_t);
+halfWord_t crc16(uint8_t*, uint8_t);
 void processMessage(UART_HandleTypeDef*);
 HAL_StatusTypeDef rtcSynchroGetTime();
 HAL_StatusTypeDef rtcSynchroSetTime();
 void updateRealTimeValues();
-uint16_t getLowPowerPWM();
 #endif

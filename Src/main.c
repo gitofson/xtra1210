@@ -27,6 +27,7 @@
 #include "mppt.h"
 #include "adc.h"
 #include "buttons.h"
+//#define UART_DEBUG_OUTPUT
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,6 +63,7 @@ DMA_HandleTypeDef hdma_usart1_rx;
 
 #define UART_BUFFER_SIZE            256
 uint8_t UART_Buffer[UART_BUFFER_SIZE];
+uint8_t isMpptSearchRequest=0;
 
 uint8_t g_uart_free=0xff;
 uint8_t g_isDataReceived=0;
@@ -102,9 +104,10 @@ int main(void)
   /* USER CODE BEGIN 1 */
   uint8_t hello[]="HELLO!\r\n";
   uint8_t buffer[256];
-  uint8_t i,j=0, isPwmSet=0, valueToShow=0;
-  t_word cnt;
+  uint8_t i,j=0, isPwmSet=0, valueToShow=0, isMpptManual=0;
+  halfWord_t cnt;
   uint32_t power, power_max=0;
+  word_t tmp_w;
 
   /* USER CODE END 1 */
 
@@ -173,7 +176,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  cnt.word=0;
+  cnt.halfWord=0;
   while (1)
   {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12); 
@@ -182,28 +185,32 @@ int main(void)
     //ADC_Start();
     //HAL_Delay(25);
     //HAL_ADC_Stop_DMA(&hadc);
-    if(MPPT_Start()==MPPT_OK){
+    if(MPPT_Start()==MPPT_OK && isMpptManual==0){
       if(MPPT_Adjust(+1)){
         MPPT_Adjust(-1);
       };
     };
+    if(isMpptSearchRequest){
+      isMpptSearchRequest=0;
+      MPPT_SearchMax();
+    }
     //battery voltage to display :
     switch(valueToShow){
     case 0:
       //cs1621_showValue(g_adcVals[1]*1967/10000);
-      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].word/10);
+      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].halfWord/10);
       cs1621_showUnits(CS1621_VOLTAGE);
       cs1621_showSource(CS1621_BATTERY);
       break;
     case 1:
       cs1621_showValue(g_adcVals[0]*4962/10000);
-      cs1621_showValue(g_realTimeData[VAL_RTD_ARRAY_VOLTAGE].word/10);
+      cs1621_showValue(g_realTimeData[VAL_RTD_ARRAY_VOLTAGE].halfWord/10);
       cs1621_showUnits(CS1621_VOLTAGE);
       cs1621_showSource(CS1621_PV);
       break;
     case 2:
       //cs1621_showValue((((int16_t) (g_adcVals[5] - 0x170)))*40/1000);
-      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_CURRENT].word/10);
+      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_CURRENT].halfWord/10);
       //cs1621_showValue(-555);
       cs1621_showUnits(CS1621_CURRENT);
       cs1621_showSource(CS1621_BATTERY);
@@ -213,15 +220,29 @@ int main(void)
       cs1621_showUnits(CS1621_UNIT_NA);
       cs1621_showSource(CS1621_TYPE);
       break;
+      
+      //unused case
+    case 4:
+    //shows10.0A
+      cs1621_showValue(g_ratedData[VAL_RTD_BATTERY_CURRENT].halfWord/10);
+      cs1621_showUnits(CS1621_CURRENT);
+      cs1621_showSource(CS1621_TYPE);
+      /*shows 25.0
+      tmp_w.halfWord.hwLo=g_ratedData[VAL_RTD_BATTERY_POWER_LO];
+      tmp_w.halfWord.hwHi=g_ratedData[VAL_RTD_BATTERY_POWER_HI];
+      cs1621_showValue(tmp_w.halfWord.hwLo.halfWord/100);
+      cs1621_showUnits(CS1621_ENERGY);
+      cs1621_showSource(CS1621_TYPE);*/
+      break;
     }
     /*
-   if(cnt.word<12000){
+   if(cnt.halfWord<12000){
       cs1621_showValue(MPPT_GetPwm());
       cs1621_showUnits(CS1621_UNIT_NA);
       cs1621_showSource(CS1621_TYPE);
 
    } else {
-      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_CURRENT].word/10);
+      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_CURRENT].halfWord/10);
       //cs1621_showValue(-555);
       cs1621_showUnits(CS1621_CURRENT);
       cs1621_showSource(CS1621_BATTERY);
@@ -230,9 +251,13 @@ int main(void)
     //SELECT BUTTON
     if(g_buttons.eventButt15pressed){
       g_buttons.eventButt15pressed=0;
-      if(++valueToShow > 3){
-        valueToShow = 0;
-      };
+      if(isMpptManual){
+        MPPT_Increment(1);
+      } else {
+        if(++valueToShow > 3){
+          valueToShow = 0;
+        };
+      }
       /*
       HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_SET); 
@@ -251,6 +276,18 @@ int main(void)
     //ENTER BUTTON
     if(g_buttons.eventButt14pressed){
       g_buttons.eventButt14pressed=0;
+      if(isMpptManual){
+        isMpptManual=0;
+        //swtch off LEDR
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+      } else {
+        //swtch on LEDR
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
+        isMpptSearchRequest=0xff;
+        //MPPT_Increment(1);
+        isMpptManual=0xff;
+      }
+      
       //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); 
       //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET); 
       //power_max=0;
@@ -260,7 +297,7 @@ int main(void)
       //};
     }
     
-    /*
+    #ifdef UART_DEBUG_OUTPUT
     strcpy(buffer,"");
     
     for (i = 0; i<N_ADC_CHANNELS; i++) {
@@ -280,7 +317,7 @@ int main(void)
     sprintf(buffer+strlen(buffer),hello);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
     HAL_UART_Transmit_IT(&huart1, buffer, strlen(buffer));
-    */
+    #endif
     if(g_isDataReceived){
       g_isDataReceived = 0;
       processMessage(&huart1);
@@ -291,8 +328,8 @@ int main(void)
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
       HAL_UART_Transmit_IT(&huart1, g_tx_buff, g_tx_buff_length);
     }
-    if(cnt.word++ > 15000){
-      cnt.word=0;
+    if(cnt.halfWord++ > 15000){
+      cnt.halfWord=0;
     };
     /*
     if(isPwmSet){
@@ -301,7 +338,7 @@ int main(void)
       __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, pwm);
     }*/
     //__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, pwm);
-    /*if(!(cnt.word % 10)){
+    /*if(!(cnt.halfWord % 10)){
       pwm--;
     }*/
   }
@@ -847,8 +884,13 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+  static uint16_t cnt=0;
   if( htim == &htim3 ){
-      updateRealTimeValues();
+    if( (cnt % 120) == 0 ){
+      isMpptSearchRequest=0xff;
+    }
+    updateRealTimeValues();
+    cnt++;
   }
 }
 /* USER CODE END 4 */
