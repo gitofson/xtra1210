@@ -49,6 +49,8 @@
 #define VAL_STAT_GENERATED_ENERGY_TODAY_LO 0x0C
 #define VAL_STAT_GENERATED_ENERGY_TODAY_HI 0x0D
 
+#define VAL_SET_CHARGING_LIMIT_VOLTAGE     0x04
+#define VAL_SET_DISCHARGING_LIMIT_VOLTAGE  0x0E
 #define VAL_SET_RTC1                       0x13
 #define VAL_SET_RTC2                       0x14
 #define VAL_SET_RTC3                       0x15

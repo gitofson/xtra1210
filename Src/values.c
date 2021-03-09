@@ -24,7 +24,7 @@ halfWord_t      g_settings[32]={
     {.halfWord=80},//uint16_t    batteryCapacity =  buffer[ 0x01 ]; //[Ah]
     {.halfWord=0},//float   tempCompensationCoeff   = ((float) buffer[ 0x02 ]) / 100.0;
     {.halfWord=3300},//float   highVoltageDisconnect   = ((float) buffer[ 0x03 ]) / 100.0;
-    {.halfWord=2840},//float   chargingLimitVoltage    = ((float) buffer[ 0x04 ]) / 100.0;
+    {.halfWord=1250},//2840 float   chargingLimitVoltage    = ((float) buffer[ 0x04 ]) / 100.0;
     {.halfWord=2840},//float   overVoltageReconnect    = ((float) buffer[ 0x05 ]) / 100.0;
     {.halfWord=2840},//float   equalizationVoltage     = ((float) buffer[ 0x06 ]) / 100.0;
     {.halfWord=2840},//float   boostVoltage            = ((float) buffer[ 0x07 ]) / 100.0;

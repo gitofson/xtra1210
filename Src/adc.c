@@ -4,6 +4,7 @@ void ADC_Start(){
     HAL_ADC_Start_DMA(&hadc, adc_vals, N_ADC_CHANNELS);
 }
 uint16_t ADC_GetRealTimeValue(uint8_t adcValueIdx){
+    int16_t current;
     switch(adcValueIdx){
         case ADC_ARRAY_VOLTAGE_IDX:
             return (g_adcVals[ADC_ARRAY_VOLTAGE_IDX]>>2)*4962/1000;
@@ -12,7 +13,12 @@ uint16_t ADC_GetRealTimeValue(uint8_t adcValueIdx){
             return (g_adcVals[ADC_BATTERY_VOLTAGE_IDX]>>2)*1967/1000;
             break;
         case ADC_BATTERY_CURRENT_IDX:
-            return (((int16_t) ((g_adcVals[ADC_BATTERY_CURRENT_IDX]>>2) - 0x170)))*40/100;//0x160
+            current = (((int16_t) ((g_adcVals[ADC_BATTERY_CURRENT_IDX]>>2) - 0x170)))*40/100;//0x160
+            if (current < 0) {
+                return 0;
+            } else {
+                return current;
+            }
                 //g_realTimeData[VAL_RTD_BATTERY_CURRENT].halfWord = (((int16_t) (g_adcVals[5] - 0x170)))*40/100;
             break;
     }

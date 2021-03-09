@@ -1,5 +1,6 @@
 #include "buttons.h"
 #include "cs1621.h"
+#include "mppt.h"
 
 buttons_t g_buttons;
 void HAL_GPIO_EXTI_Callback( uint16_t gpioPin) {
@@ -7,7 +8,8 @@ void HAL_GPIO_EXTI_Callback( uint16_t gpioPin) {
     //stop the DCDC converter if Vbat>Vpv !!!
     if (gpioPin == GPIO_PIN_10) {
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-        cs1621_showSymbol(CS1621_EXCLAMATION);
+        //MPPT_Stop();
+        //cs1621_showSymbol(CS1621_EXCLAMATION);
     }
 
     if (gpioPin == GPIO_PIN_14) {
