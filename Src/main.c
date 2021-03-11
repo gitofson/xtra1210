@@ -177,6 +177,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   cnt.halfWord=0;
+  valueToShow=3;
   while (1)
   {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12); 

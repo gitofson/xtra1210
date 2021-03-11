@@ -5,7 +5,7 @@
 #define MPPT_PWM_MAX_VALUE                          (250-1)
 #define MPPT_PWM_MIN_VALUE                          (MPPT_PWM_MAX_VALUE/2)
 #define MPPT_START_MIN_BATTERY_VOLTAGE              (8)
-#define MPPT_START_MIN_ARRAY_VOLTAGE                (15)
+#define MPPT_START_MIN_ARRAY_VOLTAGE                (MPPT_START_MIN_BATTERY_VOLTAGE+2)
 #define MPPT_MAX_CURENT_LIMIT_PERCENTAGE            (50)
 #define MPPT_MAX_CHARGING_VOLTAGE_LIMIT_PERCENTAGE  (100)
 

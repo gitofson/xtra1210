@@ -85,8 +85,8 @@ void MPPT_SearchMax(){
         break;
       }
     }
-    if(optimalPwm<MPPT_PWM_MIN_VALUE){
-      optimalPwm=MPPT_PWM_MIN_VALUE;
+    if(optimalPwm < minPwmValue){
+      optimalPwm = minPwmValue;
     }
     pwm=optimalPwm;
     __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, pwm);
@@ -99,13 +99,16 @@ enum MPPT_Adjust_Response MPPT_Adjust(int8_t pwmStep){
   int32_t power;
   enum MPPT_Adjust_Response response=MPPT_Adjust_None;
   if(mppt_status.isWorking){
+    if(pwm == minPwmValue){
+      previous_power = 0;
+    }
     pwm += pwmStep;
     if(pwm > MPPT_PWM_MAX_VALUE){
       pwm= MPPT_PWM_MAX_VALUE;
     }
     __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, pwm);
     HAL_Delay(50);
-    power=g_adcVals[ADC_BATTERY_VOLTAGE_IDX]*g_adcVals[ADC_BATTERY_CURRENT_IDX];
+    power=ADC_GetRealTimeValue(ADC_BATTERY_VOLTAGE_IDX)*ADC_GetRealTimeValue(ADC_BATTERY_CURRENT_IDX);
     if(maxCurrentCheck(MPPT_MAX_CURENT_LIMIT_PERCENTAGE)){
       response=MPPT_Adjust_Overcurrent;
     }
@@ -113,16 +116,19 @@ enum MPPT_Adjust_Response MPPT_Adjust(int8_t pwmStep){
       response=MPPT_Adjust_Overvoltage;
     }
     //power=ADC_GetRealTimeValue(ADC_BATTERY_VOLTAGE_IDX)*ADC_GetRealTimeValue(ADC_BATTERY_CURRENT_IDX);
-    if(power > previous_power && response != MPPT_Adjust_None){
+    if(power >= previous_power && response == MPPT_Adjust_None){
       previous_power=power;
       return MPPT_Adjust_OK;
     } else {
       if((pwmStep < 0 && response==MPPT_Adjust_None) || (pwmStep > 0)){
         pwm -= pwmStep;
         if(pwm < minPwmValue){
+          //previous_power = 0;
           pwm = minPwmValue;
         }
         __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, pwm);
+      } else {
+        
       }
     }
   }
