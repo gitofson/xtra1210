@@ -27,6 +27,7 @@
 #include "mppt.h"
 #include "adc.h"
 #include "buttons.h"
+#include "rtc.h"
 //#define UART_DEBUG_OUTPUT
 /* USER CODE END Includes */
 
@@ -62,8 +63,9 @@ DMA_HandleTypeDef hdma_usart1_rx;
 
 
 #define UART_BUFFER_SIZE            256
+#define LED_RED_ON                  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
+#define LED_RED_OFF                 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 uint8_t UART_Buffer[UART_BUFFER_SIZE];
-uint8_t isMpptSearchRequest=0;
 
 uint8_t g_uart_free=0xff;
 uint8_t g_isDataReceived=0;
@@ -102,12 +104,13 @@ static void MX_TIM3_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  mppt_handle_t hmppt;
   uint8_t hello[]="HELLO!\r\n";
-  uint8_t buffer[256];
-  uint8_t i,j=0, isPwmSet=0, valueToShow=0, isMpptManual=0;
+  //uint8_t buffer[256];
+  uint8_t valueToShow=0;
   halfWord_t cnt;
-  uint32_t power, power_max=0;
-  word_t tmp_w;
+  //uint32_t power, power_max=0;
+  //word_t tmp_w;
 
   /* USER CODE END 1 */
 
@@ -137,28 +140,27 @@ int main(void)
   MX_RTC_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-
+  MPPT_Init(&hmppt);
   //swtch on backlight
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
   //swtch on LEDG
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
   //swtch on LEDR
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
+  LED_RED_ON
   HAL_Delay(500);
   //swtch off backlight
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
   //swtch off LEDG
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
   //swtch off LEDR
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
-
-  __HAL_UART_CLEAR_IDLEFLAG(&huart1);
-  __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);   // enable idle line interrupt
-      //__HAL_DMA_ENABLE_IT (&hdma_usart1_rx, DMA_IT_TC);  // enable DMA Tx cplt interrupt
+  LED_RED_OFF
 
   //start TIM3 (1 second timer for energy computation)
   HAL_TIM_Base_Start_IT(&htim3);
 
+  __HAL_UART_CLEAR_IDLEFLAG(&huart1);
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);   // enable idle line interrupt
+      //__HAL_DMA_ENABLE_IT (&hdma_usart1_rx, DMA_IT_TC);  // enable DMA Tx cplt interrupt
 
   HAL_UART_Receive_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
  // HAL_UART_Receive_DMA (&huart1, DMA_RX_Buffer, DMA_RX_BUFFER_SIZE);
@@ -167,7 +169,7 @@ int main(void)
   //hdma_usart1_rx.Instance->CCR &= ~DMA_CCR_HTIE;  // disable uart half tx interru
 
 
-  HAL_Delay(2000);
+  HAL_Delay(1000);
   
 
   cs1621_init();
@@ -184,40 +186,42 @@ int main(void)
     //
     //cs1621_test(cnt);
     //ADC_Start();
-    //HAL_Delay(25);
+    HAL_Delay(25);
     //HAL_ADC_Stop_DMA(&hadc);
-    if(MPPT_Start()==MPPT_OK && isMpptManual==0){
-      if(MPPT_Adjust(+1)){
-        MPPT_Adjust(-1);
-      };
-    };
-    if(isMpptSearchRequest){
-      isMpptSearchRequest=0;
-      MPPT_SearchMax();
+    if(MPPT_Start(&hmppt)==MPPT_OK){
+      if(hmppt.isMpptManual==0){
+        if(MPPT_Adjust(&hmppt, +1)){
+          MPPT_Adjust(&hmppt, -1);
+        }
+      } else {
+        if(hmppt.isMpptSearchInitialRequest || hmppt.isMpptSearchInProgress){
+          MPPT_SearchMax(&hmppt);
+        }
+      }
     }
     //battery voltage to display :
     switch(valueToShow){
     case 0:
       //cs1621_showValue(g_adcVals[1]*1967/10000);
-      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_VOLTAGE].halfWord/10);
+      cs1621_showValue(g_realTimeData.par.batteryVoltage/10);
       cs1621_showUnits(CS1621_VOLTAGE);
       cs1621_showSource(CS1621_BATTERY);
       break;
     case 1:
-      cs1621_showValue(g_adcVals[0]*4962/10000);
-      cs1621_showValue(g_realTimeData[VAL_RTD_ARRAY_VOLTAGE].halfWord/10);
+      //cs1621_showValue(g_adcVals[0]*4962/10000);
+      cs1621_showValue(g_realTimeData.par.pvArrayVoltage/10);
       cs1621_showUnits(CS1621_VOLTAGE);
       cs1621_showSource(CS1621_PV);
       break;
     case 2:
       //cs1621_showValue((((int16_t) (g_adcVals[5] - 0x170)))*40/1000);
-      cs1621_showValue(g_realTimeData[VAL_RTD_BATTERY_CURRENT].halfWord/10);
+      cs1621_showValue(g_realTimeData.par.batteryCurrent/10);
       //cs1621_showValue(-555);
       cs1621_showUnits(CS1621_CURRENT);
       cs1621_showSource(CS1621_BATTERY);
       break;
     case 3:
-      cs1621_showValue(MPPT_GetPwm());
+      cs1621_showValue(hmppt.pwm);
       cs1621_showUnits(CS1621_UNIT_NA);
       cs1621_showSource(CS1621_TYPE);
       break;
@@ -252,8 +256,8 @@ int main(void)
     //SELECT BUTTON
     if(g_buttons.eventButt15pressed){
       g_buttons.eventButt15pressed=0;
-      if(isMpptManual){
-        MPPT_Increment(1);
+      if(hmppt.isMpptManual){
+        MPPT_Increment(&hmppt, 1);
       } else {
         if(++valueToShow > 3){
           valueToShow = 0;
@@ -277,16 +281,16 @@ int main(void)
     //ENTER BUTTON
     if(g_buttons.eventButt14pressed){
       g_buttons.eventButt14pressed=0;
-      if(isMpptManual){
-        isMpptManual=0;
+      if(hmppt.isMpptManual){
+        hmppt.isMpptManual=0;
         //swtch off LEDR
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+        LED_RED_OFF
       } else {
         //swtch on LEDR
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
-        isMpptSearchRequest=0xff;
+        LED_RED_ON
+        hmppt.isMpptSearchInitialRequest=0xff;
         //MPPT_Increment(1);
-        isMpptManual=0xff;
+        hmppt.isMpptManual=0xff;
       }
       
       //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); 
@@ -327,6 +331,7 @@ int main(void)
       g_readyToSend=0;
       g_uart_free=0;
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+      LED_RED_ON
       HAL_UART_Transmit_IT(&huart1, g_tx_buff, g_tx_buff_length);
     }
     if(cnt.halfWord++ > 15000){
@@ -533,6 +538,7 @@ static void MX_RTC_Init(void)
 
   RTC_TimeTypeDef sTime = {0};
   RTC_DateTypeDef sDate = {0};
+  RTC_AlarmTypeDef sAlarm = {0};
 
   /* USER CODE BEGIN RTC_Init 1 */
 
@@ -567,11 +573,28 @@ static void MX_RTC_Init(void)
     Error_Handler();
   }
   sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
-  sDate.Month = RTC_MONTH_FEBRUARY;
+  sDate.Month = RTC_MONTH_MARCH;
   sDate.Date = 0x17;
   sDate.Year = 0x0;
 
   if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Enable the Alarm A
+  */
+  sAlarm.AlarmTime.Hours = 0x0;
+  sAlarm.AlarmTime.Minutes = 0x0;
+  sAlarm.AlarmTime.Seconds = 0x0;
+  sAlarm.AlarmTime.SubSeconds = 0x0;
+  sAlarm.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_SUB1H;
+  sAlarm.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
+  sAlarm.AlarmMask = RTC_ALARMMASK_MINUTES|RTC_ALARMMASK_SECONDS;
+  sAlarm.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_ALL;
+  sAlarm.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
+  sAlarm.AlarmDateWeekDay = 0x1;
+  sAlarm.Alarm = RTC_ALARM_A;
+  if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BCD) != HAL_OK)
   {
     Error_Handler();
   }
@@ -877,6 +900,7 @@ static void MX_GPIO_Init(void)
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+  LED_RED_OFF
   g_uart_free=0xff;
 }
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
@@ -888,12 +912,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   static uint16_t cnt=0;
   if( htim == &htim3 ){
     if( (cnt % 120) == 0 ){
-      isMpptSearchRequest=0xff;
+      //isMpptSearchRequest=0xff;
     }
     updateRealTimeValues();
     cnt++;
   }
 }
+
 /* USER CODE END 4 */
 
 /**

@@ -9,6 +9,7 @@
 #define MPPT_MAX_CURENT_LIMIT_PERCENTAGE            (50)
 #define MPPT_MAX_CHARGING_VOLTAGE_LIMIT_PERCENTAGE  (100)
 
+
 enum MPPT_Response{
     MPPT_OK = 0,
     MPPT_STOPPED,
@@ -21,9 +22,19 @@ enum MPPT_Adjust_Response{
     MPPT_Adjust_None,
 };
 
-enum MPPT_Response MPPT_Start();
-void MPPT_SearchMax();
-enum MPPT_Adjust_Response MPPT_Adjust(int8_t);
-uint16_t MPPT_GetPwm();
-void MPPT_Increment(int16_t value);
+
+typedef struct _mppt_handle_t {
+    uint8_t isWorking;
+    uint8_t isMpptSearchInitialRequest;
+    uint8_t isMpptSearchInProgress;
+    uint8_t isMpptManual;
+    uint16_t pwm;
+
+} mppt_handle_t;
+
+void MPPT_Init(mppt_handle_t*);
+enum MPPT_Response MPPT_Start(mppt_handle_t*);
+void MPPT_SearchMax(mppt_handle_t*);
+enum MPPT_Adjust_Response MPPT_Adjust(mppt_handle_t*, int8_t);
+void MPPT_Increment(mppt_handle_t*, int16_t value);
 #endif

@@ -1,8 +1,8 @@
 #ifndef __VALUES_H
 #define __VALUES_H
-#define DEFAULT_SLAVE_ID 2
-#define RECEIVED_DATA_MAX_LENGTH 8
-#define RECEIVED_DATA_MIN_LENGTH 8
+#define DEFAULT_SLAVE_ID 4
+#define RECEIVED_DATA_MAX_LENGTH sizeof(g_request)
+//#define RECEIVED_DATA_MIN_LENGTH 8
 #define TRASNSMIT_DATA_MAX_LENGTH 128
 
 #define INFO_VENDOR_NAME "EPsolar Tech co., LtdTriRon1210"
@@ -91,7 +91,7 @@ typedef union _request {
     } req;
 	uint8_t buff[sizeof(struct _req)];
 } t_request;
-t_request g_request;
+extern t_request g_request;
 
 #define DMA_RX_BUFFER_SIZE          64
 //#define DMA_RX_BUFFER_SIZE          sizeof(g_request)
@@ -153,7 +153,37 @@ Rated output current of load 300E A 100
 
     */
 //getRealTimeData:
-    extern halfWord_t g_realTimeData[32];
+    typedef union _realTimeData {
+        uint16_t buffer[32];
+        struct _parrdt{
+            uint16_t pvArrayVoltage;
+            uint16_t pvArrayCurrent;
+            uint32_t pvArrayPower;
+
+            uint16_t batteryVoltage;
+            uint16_t batteryCurrent;
+            uint32_t batteryPower;
+
+            uint16_t unknownVoltage;
+            uint16_t unknownCurrent;
+            uint32_t unknownPower;
+
+            uint16_t loadVoltage;
+            uint16_t loadCurrent;
+            uint32_t loadPower;
+
+            uint16_t batteryTemp;
+            uint16_t caseTemp;
+            uint16_t componentsTemp;
+
+            uint16_t unused[7];
+
+            uint16_t batterySOC;
+            uint16_t remoteBatteryTemp;
+            uint16_t systemRatedVoltage;
+        } par;
+    } realTimeData_t;
+    extern realTimeData_t g_realTimeData;
     /*
     int         registerAddress = 0x3100;
     uint8_t     numBytes = 0x13;                  // 0x14 and up gives 'illegal data address' error
@@ -225,7 +255,31 @@ Rated output current of load 300E A 100
      */
 
 //getStatisicalParameters (modbus_t *ctx)
-    extern uint16_t    g_statisticalParameters[32];
+    typedef union _statisticalParameters {
+        uint16_t buffer[32];
+        struct _parsp{
+            uint16_t maximumInputVoltageToday;
+            uint16_t minimumInputVoltageToday;
+            uint16_t maximumBatteryVoltageToday;
+            uint16_t minimumBatteryVoltageToday;
+
+            uint32_t consumedEnergyToday;
+            uint32_t consumedEnergyMonth;
+            uint32_t consumedEnergyYear;
+            uint32_t totalConsumedEnergy;
+
+            uint32_t generatedEnergyToday;
+            uint32_t generatedEnergyMonth;
+            uint32_t generatedEnergyYear;
+            uint32_t totalGeneratedEnergy;
+
+            uint32_t CO2Reduction;
+
+
+
+        } par;
+    } statisticalParameters_t;
+    extern statisticalParameters_t    g_statisticalParameters;
 /*
     int         registerAddress = 0x3300;
     int         numBytes = 0x1E;                  
@@ -312,7 +366,6 @@ Rated output current of load 300E A 100
     */   
 halfWord_t crc16(uint8_t*, uint8_t);
 void processMessage(UART_HandleTypeDef*);
-HAL_StatusTypeDef rtcSynchroGetTime();
-HAL_StatusTypeDef rtcSynchroSetTime();
+
 void updateRealTimeValues();
 #endif

@@ -203,6 +203,9 @@ void HAL_RTC_MspInit(RTC_HandleTypeDef* hrtc)
   /* USER CODE END RTC_MspInit 0 */
     /* Peripheral clock enable */
     __HAL_RCC_RTC_ENABLE();
+    /* RTC interrupt Init */
+    HAL_NVIC_SetPriority(RTC_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(RTC_IRQn);
   /* USER CODE BEGIN RTC_MspInit 1 */
 
   /* USER CODE END RTC_MspInit 1 */
@@ -225,6 +228,9 @@ void HAL_RTC_MspDeInit(RTC_HandleTypeDef* hrtc)
   /* USER CODE END RTC_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_RTC_DISABLE();
+
+    /* RTC interrupt DeInit */
+    HAL_NVIC_DisableIRQ(RTC_IRQn);
   /* USER CODE BEGIN RTC_MspDeInit 1 */
 
   /* USER CODE END RTC_MspDeInit 1 */
@@ -441,7 +447,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     hdma_usart1_rx.Init.MemInc = DMA_MINC_ENABLE;
     hdma_usart1_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
     hdma_usart1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_usart1_rx.Init.Mode = DMA_NORMAL;
+    hdma_usart1_rx.Init.Mode = DMA_CIRCULAR;
     hdma_usart1_rx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
     if (HAL_DMA_Init(&hdma_usart1_rx) != HAL_OK)
     {
