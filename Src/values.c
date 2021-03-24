@@ -32,7 +32,7 @@ halfWord_t      g_settings[32]={
     {.halfWord=80},//uint16_t    batteryCapacity =  buffer[ 0x01 ]; //[Ah]
     {.halfWord=0},//float   tempCompensationCoeff   = ((float) buffer[ 0x02 ]) / 100.0;
     {.halfWord=3300},//float   highVoltageDisconnect   = ((float) buffer[ 0x03 ]) / 100.0;
-    {.halfWord=2750},//2840 float   chargingLimitVoltage    = ((float) buffer[ 0x04 ]) / 100.0;
+    {.halfWord=2800},//2840 float   chargingLimitVoltage    = ((float) buffer[ 0x04 ]) / 100.0;
     {.halfWord=2840},//float   overVoltageReconnect    = ((float) buffer[ 0x05 ]) / 100.0;
     {.halfWord=2840},//float   equalizationVoltage     = ((float) buffer[ 0x06 ]) / 100.0;
     {.halfWord=2840},//float   boostVoltage            = ((float) buffer[ 0x07 ]) / 100.0;
@@ -123,16 +123,25 @@ void processMessage(UART_HandleTypeDef *huart)
                     switch(g_request.req.rest.data.address.byte.lo ){
                         case 0x30:
                             memcpy(g_tx_buff, g_request.buff, 2);
+                            if(length > sizeof(g_ratedData)){
+                                length = sizeof(g_ratedData);
+                            }
                             g_tx_buff[2] = length;
                             worldToByteCp(g_tx_buff+3, g_ratedData + g_request.req.rest.data.address.byte.hi, length/2);
                             break;
                         case 0x31:
                             memcpy(g_tx_buff, g_request.buff, 2);
+                            if(length > sizeof(g_realTimeData)){
+                                length = sizeof(g_realTimeData);
+                            }
                             g_tx_buff[2] = length;
                             worldToByteCp(g_tx_buff+3, g_realTimeData.buffer + g_request.req.rest.data.address.byte.hi, length/2);
                             break;
                         case 0x33:
                             memcpy(g_tx_buff, g_request.buff, 2);
+                            if(length > sizeof(g_statisticalParameters)){
+                                length = sizeof(g_statisticalParameters);
+                            }
                             g_tx_buff[2] = length;
                             worldToByteCp(g_tx_buff+3, g_statisticalParameters.buffer + g_request.req.rest.data.address.byte.hi, length/2);
                             break;                        
@@ -217,3 +226,15 @@ void updateRealTimeValues(){
     //g_statisticalParameters[VAL_STAT_GENERATED_ENERGY_TODAY_LO] = tmp &=0xffff;
     //g_statisticalParameters[VAL_STAT_GENERATED_ENERGY_TODAY_HI] = tmp >> 16;
 }
+
+//HAL_USART_RxCpltCallback(huart){
+HAL_UARTEx_RxEventCallback() {
+   if(g_request.req.slave_id == DEFAULT_SLAVE_ID){
+      g_isDataReceived = 0xff;
+    }
+    if(huart1.hdmarx->Instance->CNDTR){
+        g_isUartRestartRequired=0xff;
+    }
+    //HAL_UARTEx_ReceiveToIdle_DMA(huart, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
+}
+

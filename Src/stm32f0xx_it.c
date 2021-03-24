@@ -234,13 +234,23 @@ huart2.hdmarx->Instance->CCR |= DMA_CCR_EN;
   HAL_UART_IRQHandler(&huart1);
   /* USER CODE BEGIN USART1_IRQn 1 */
   //USART_IrqHandler (&huart1, &hdma_usart1_rx);
+  //old receiveData to IDLE code:
+  /*
     if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) == SET)
   {
     __HAL_UART_CLEAR_FLAG(&huart1, UART_FLAG_IDLE);
+    //align DMA pointer
+    if(__HAL_DMA_GET_COUNTER(huart1.hdmarx) != 0){
+      //huart1.hdmarx->Instance->CNDTR=0;
+      // try HAL_UARTEx_ReceiveToIdle_DMA()
+      HAL_UART_DMAStop(&huart1);
+      HAL_UART_Receive_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
+    }
     if(g_request.req.slave_id == DEFAULT_SLAVE_ID){
       g_isDataReceived = 0xff;
     }
   }
+  */
   /* USER CODE END USART1_IRQn 1 */
 }
 

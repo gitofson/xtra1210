@@ -98,11 +98,14 @@ extern t_request g_request;
 uint8_t DMA_RX_Buffer[DMA_RX_BUFFER_SIZE];
 //#define DMA_RX_Buffer               (uint8_t*) g_request
 extern RTC_HandleTypeDef hrtc;
+extern UART_HandleTypeDef huart1;
+
 extern uint8_t g_readyToSend;
 extern uint8_t g_isDataReceived;
 extern uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 extern uint8_t g_tx_buff_length;
 extern uint8_t g_uart_free;
+extern uint8_t g_isUartRestartRequired;
 //extern UART_HandleTypeDef huart1;
 
 /*

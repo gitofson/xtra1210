@@ -71,6 +71,7 @@ void MPPT_SearchMax(mppt_handle_t *hmppt){
 
   if(hmppt->isWorking){
     if(hmppt->isMpptSearchInitialRequest){
+      hmppt->isMpptSearchInitialRequest = 0;
       maxPower = 0;
       hmppt->isMpptSearchInProgress=0xff;
       optimalPwm=minPwmValue = hmppt->pwm = getLowPowerPWM();
@@ -81,7 +82,7 @@ void MPPT_SearchMax(mppt_handle_t *hmppt){
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);    
 
       if(++hmppt->pwm <= MPPT_PWM_MAX_VALUE){
-        //HAL_Delay(40);
+        HAL_Delay(40);
         power=g_adcVals[ADC_BATTERY_VOLTAGE_IDX]*g_adcVals[ADC_BATTERY_CURRENT_IDX];
         if(power>maxPower){
           maxPower = power;
@@ -95,17 +96,17 @@ void MPPT_SearchMax(mppt_handle_t *hmppt){
           optimalPwm = hmppt->pwm-1;
           goto L_MPPT_SearchMax001;
         }
-      }
-      if(optimalPwm < minPwmValue){
-        optimalPwm = minPwmValue;
+        if(optimalPwm < minPwmValue){
+          optimalPwm = minPwmValue;
+        } 
       } else {
-L_MPPT_SearchMax001:      
+  L_MPPT_SearchMax001:   
         hmppt->isMpptSearchInProgress = 0;
         hmppt->pwm = optimalPwm;
       }
       __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, hmppt->pwm);
       //swtch off backlight
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);    
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
     }
   }
 }
@@ -130,7 +131,6 @@ enum MPPT_Adjust_Response MPPT_Adjust(mppt_handle_t *hmppt, int8_t pwmStep){
     if(maxChargingVoltageCheck(MPPT_MAX_CHARGING_VOLTAGE_LIMIT_PERCENTAGE)){
       response=MPPT_Adjust_Overvoltage;
     }
-    //power=ADC_GetRealTimeValue(ADC_BATTERY_VOLTAGE_IDX)*ADC_GetRealTimeValue(ADC_BATTERY_CURRENT_IDX);
     if(power >= previous_power && response == MPPT_Adjust_None){
       previous_power=power;
       return MPPT_Adjust_OK;

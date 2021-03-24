@@ -69,6 +69,7 @@ uint8_t UART_Buffer[UART_BUFFER_SIZE];
 
 uint8_t g_uart_free=0xff;
 uint8_t g_isDataReceived=0;
+uint8_t g_isUartRestartRequired=0xff;
 uint8_t g_readyToSend=0;
 uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 uint8_t g_tx_buff_length;
@@ -158,12 +159,13 @@ int main(void)
   //start TIM3 (1 second timer for energy computation)
   HAL_TIM_Base_Start_IT(&htim3);
 
-  __HAL_UART_CLEAR_IDLEFLAG(&huart1);
-  __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);   // enable idle line interrupt
-      //__HAL_DMA_ENABLE_IT (&hdma_usart1_rx, DMA_IT_TC);  // enable DMA Tx cplt interrupt
-
-  HAL_UART_Receive_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
- // HAL_UART_Receive_DMA (&huart1, DMA_RX_Buffer, DMA_RX_BUFFER_SIZE);
+  //__HAL_UART_CLEAR_IDLEFLAG(&huart1);
+  //__HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);   // enable idle line interrupt
+      
+// try 
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
+  //HAL_UART_Receive_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
+ 
 
 
   //hdma_usart1_rx.Instance->CCR &= ~DMA_CCR_HTIE;  // disable uart half tx interru
@@ -182,6 +184,12 @@ int main(void)
   valueToShow=3;
   while (1)
   {
+    if (g_isUartRestartRequired){
+        HAL_UART_DMAStop(&huart1);
+        huart1.hdmarx->Instance->CNDTR = 0;
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
+        g_isUartRestartRequired=0;
+    }
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12); 
     //
     //cs1621_test(cnt);
@@ -743,7 +751,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 48000-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 1000-1;
+  htim3.Init.Period = 10-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -909,12 +917,18 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  static uint16_t cnt=0;
+  static uint32_t cnt=0;
   if( htim == &htim3 ){
-    if( (cnt % 120) == 0 ){
-      //isMpptSearchRequest=0xff;
+    if( (cnt % 12000) == 0 ){
+    //hmppt.isMpptSearchRequest=0xff;
+    //temporary test
+      HAL_UART_DMAStop(&huart1);
+      huart1.hdmarx->Instance->CNDTR = 0;
+      HAL_UARTEx_ReceiveToIdle_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
     }
-    updateRealTimeValues();
+    if( (cnt % 100) == 0 ){
+      updateRealTimeValues();
+    }
     cnt++;
   }
 }
