@@ -26,6 +26,7 @@ void MPPT_Init(mppt_handle_t *mppt){
   mppt->isMpptSearchInProgress=0;
   mppt->isWorking=0;
   mppt->pwm=MPPT_PWM_MIN_VALUE;
+  mppt->timer10ms=0;
 }
 enum MPPT_Response MPPT_Start(mppt_handle_t *hmppt){
     
@@ -67,6 +68,9 @@ enum MPPT_Response MPPT_Start(mppt_handle_t *hmppt){
 void MPPT_SearchMax(mppt_handle_t *hmppt){
   static uint32_t maxPower;
   static uint16_t optimalPwm;
+  static uint32_t nextPoint10msTimer;
+  uint32_t delta;
+  //uint32_t tmp;
   uint32_t power;
 
   if(hmppt->isWorking){
@@ -75,38 +79,48 @@ void MPPT_SearchMax(mppt_handle_t *hmppt){
       maxPower = 0;
       hmppt->isMpptSearchInProgress=0xff;
       optimalPwm=minPwmValue = hmppt->pwm = getLowPowerPWM();
-      //__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, hmppt->pwm);
+      __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, hmppt->pwm);
+      nextPoint10msTimer=hmppt->timer10ms+4;
+      //swtch on backlight
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET); 
+      return;
     }
     if(hmppt->isMpptSearchInProgress){
-      //swtch on backlight
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);    
+      delta = nextPoint10msTimer - hmppt->timer10ms;
+      // assert overflow case, see https://luckyresistor.me/2019/07/10/real-time-counter-and-integer-overflow/
+      if((delta & 0x80000000u) != 0 || delta == 0){
+   
 
-      if(++hmppt->pwm <= MPPT_PWM_MAX_VALUE){
-        HAL_Delay(40);
-        power=g_adcVals[ADC_BATTERY_VOLTAGE_IDX]*g_adcVals[ADC_BATTERY_CURRENT_IDX];
-        if(power>maxPower){
-          maxPower = power;
-          optimalPwm = hmppt->pwm;
+        if(++hmppt->pwm <= MPPT_PWM_MAX_VALUE){
+          //HAL_Delay(40);
+          power=g_adcVals[ADC_BATTERY_VOLTAGE_IDX]*g_adcVals[ADC_BATTERY_CURRENT_IDX];
+          if(power>maxPower){
+            maxPower = power;
+            optimalPwm = hmppt->pwm;
+          }
+          if(maxCurrentCheck(MPPT_MAX_CURENT_LIMIT_PERCENTAGE)){
+            optimalPwm = hmppt->pwm-1;
+            goto L_MPPT_SearchMax001;
+          }
+          if(maxChargingVoltageCheck(MPPT_MAX_CHARGING_VOLTAGE_LIMIT_PERCENTAGE)){
+            optimalPwm = hmppt->pwm-1;
+            goto L_MPPT_SearchMax001;
+          }
+          if(optimalPwm < minPwmValue){
+            optimalPwm = minPwmValue;
+          }
+          nextPoint10msTimer=hmppt->timer10ms+4;
+        } else {
+    L_MPPT_SearchMax001:   
+          hmppt->isMpptSearchInProgress = 0;
+          hmppt->pwm = optimalPwm;
+          //swtch off backlight
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
         }
-        if(maxCurrentCheck(MPPT_MAX_CURENT_LIMIT_PERCENTAGE)){
-          optimalPwm = hmppt->pwm-1;
-          goto L_MPPT_SearchMax001;
-        }
-        if(maxChargingVoltageCheck(MPPT_MAX_CHARGING_VOLTAGE_LIMIT_PERCENTAGE)){
-          optimalPwm = hmppt->pwm-1;
-          goto L_MPPT_SearchMax001;
-        }
-        if(optimalPwm < minPwmValue){
-          optimalPwm = minPwmValue;
-        } 
-      } else {
-  L_MPPT_SearchMax001:   
-        hmppt->isMpptSearchInProgress = 0;
-        hmppt->pwm = optimalPwm;
+        __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, hmppt->pwm);
+        
+        
       }
-      __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, hmppt->pwm);
-      //swtch off backlight
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
     }
   }
 }
@@ -121,6 +135,9 @@ enum MPPT_Adjust_Response MPPT_Adjust(mppt_handle_t *hmppt, int8_t pwmStep){
     hmppt->pwm += pwmStep;
     if(hmppt->pwm > MPPT_PWM_MAX_VALUE){
       hmppt->pwm= MPPT_PWM_MAX_VALUE;
+    }
+    if(hmppt->pwm <= minPwmValue){
+      hmppt->pwm = minPwmValue;
     }
     __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, hmppt->pwm);
     HAL_Delay(50);

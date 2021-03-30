@@ -12,7 +12,7 @@ HAL_StatusTypeDef rtcSynchroSetTime(){
     sTime.Seconds = g_settings[VAL_SET_RTC1].byte.lo;
     sTime.DayLightSaving = RTC_DAYLIGHTSAVING_SUB1H;
     sTime.StoreOperation = RTC_STOREOPERATION_RESET;
-    if (out = HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD))
+    if (out = HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN))
     {
         return out;
         //Error_Handler();
@@ -22,7 +22,7 @@ HAL_StatusTypeDef rtcSynchroSetTime(){
     sDate.Date = g_settings[VAL_SET_RTC2].byte.hi;
     sDate.Year = g_settings[VAL_SET_RTC3].byte.hi;
 
-    if (out=HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD))
+    if (out=HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN))
     {
         return out;
         //Error_Handler();
@@ -34,7 +34,7 @@ HAL_StatusTypeDef rtcSynchroGetTime(){
     RTC_TimeTypeDef sTime = {0};
     RTC_DateTypeDef sDate = {0};
     HAL_StatusTypeDef out;
-    if (out = HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BCD))
+    if (out = HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN))
     {
         return out;
         //Error_Handler();
@@ -42,7 +42,7 @@ HAL_StatusTypeDef rtcSynchroGetTime(){
      g_settings[VAL_SET_RTC2].byte.lo = sTime.Hours;
      g_settings[VAL_SET_RTC1].byte.hi = sTime.Minutes;
      g_settings[VAL_SET_RTC1].byte.lo = sTime.Seconds;
-    if (out=HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BCD))
+    if (out=HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN))
     {
         return out;
         //Error_Handler();
@@ -61,32 +61,30 @@ void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc){
     static RTC_DateTypeDef lastDate;
     RTC_TimeTypeDef sTime = {0};
     RTC_DateTypeDef sDate = {0};
-    enum RTC_Event out;
   /*
     if (out = HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BCD))
     {
         Error_Handler();
     }*/
-    if (out=HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BCD))
+    if (HAL_RTC_GetDate(hrtc, &sDate, RTC_FORMAT_BIN))
     {
         Error_Handler();
     }
     if(firstRun) {
         firstRun = 0;
-        out=RTC_EVENT_NOTHING;
+        g_rtcEvent=RTC_EVENT_NOTHING;
     } else {
         if(sDate.Year != lastDate.Year){
-            out = RTC_EVENT_NEW_YEAR;
+            g_rtcEvent = RTC_EVENT_NEW_YEAR;
         } else {
             if(sDate.Month != lastDate.Month){
-                out = RTC_EVENT_NEW_MONTH;
+                g_rtcEvent = RTC_EVENT_NEW_MONTH;
             } else {
-                out = RTC_EVENT_NEW_DAY;
+                g_rtcEvent = RTC_EVENT_NEW_DAY;
             }
 
         }
         
     }
     lastDate=sDate;
-    return out;
 }

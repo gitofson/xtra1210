@@ -1,9 +1,12 @@
 #ifndef __VALUES_H
 #define __VALUES_H
+#include "flash.h"
+#include "mppt.h"
+
 #define DEFAULT_SLAVE_ID 4
 #define RECEIVED_DATA_MAX_LENGTH sizeof(g_request)
 //#define RECEIVED_DATA_MIN_LENGTH 8
-#define TRASNSMIT_DATA_MAX_LENGTH 128
+#define TRASNSMIT_DATA_MAX_LENGTH 255
 
 #define INFO_VENDOR_NAME "EPsolar Tech co., LtdTriRon1210"
 //#define INFO_VENDOR_NAME "https://github.com/gitofson/xtra1210"
@@ -227,7 +230,15 @@ Rated output current of load 300E A 100
     */
 
 //getRealTimeStatus (modbus_t *ctx)
-    extern uint16_t    g_realTimeStatus[2];
+    //extern uint16_t    g_realTimeStatus[2];
+     typedef union _realTimeStatus {
+        uint16_t buffer[2];
+        struct _parrts{
+            uint16_t batteryStatus;
+            uint16_t chargingStatus;
+        } par;
+    } realTimeStatus_t;
+    extern realTimeStatus_t g_realTimeStatus;
     /*
     int         registerAddress = 0x3200;
     int         numBytes = 0x2;
@@ -369,6 +380,7 @@ Rated output current of load 300E A 100
     */   
 halfWord_t crc16(uint8_t*, uint8_t);
 void processMessage(UART_HandleTypeDef*);
+void valuesInit();
 
-void updateRealTimeValues();
+void updateRealTimeValues(mppt_handle_t *hmppt);
 #endif

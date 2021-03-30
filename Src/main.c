@@ -75,6 +75,8 @@ uint8_t g_tx_buff[TRASNSMIT_DATA_MAX_LENGTH];
 uint8_t g_tx_buff_length;
 uint16_t g_adcVals[N_ADC_CHANNELS]={0};
 
+mppt_handle_t hmppt;
+
 
 
 /* USER CODE END PV */
@@ -105,7 +107,7 @@ static void MX_TIM3_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  mppt_handle_t hmppt;
+  
   uint8_t hello[]="HELLO!\r\n";
   //uint8_t buffer[256];
   uint8_t valueToShow=0;
@@ -141,6 +143,10 @@ int main(void)
   MX_RTC_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  // init RTC
+  HAL_RTC_AlarmAEventCallback(&hrtc);
+  //init values with stored flash
+  valuesInit();
   MPPT_Init(&hmppt);
   //swtch on backlight
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
@@ -163,7 +169,7 @@ int main(void)
   //__HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);   // enable idle line interrupt
       
 // try 
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
+  //HAL_UARTEx_ReceiveToIdle_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
   //HAL_UART_Receive_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
  
 
@@ -186,9 +192,11 @@ int main(void)
   {
     if (g_isUartRestartRequired){
         HAL_UART_DMAStop(&huart1);
+        //HAL_Delay(10);
         huart1.hdmarx->Instance->CNDTR = 0;
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
-        g_isUartRestartRequired=0;
+        if(HAL_UARTEx_ReceiveToIdle_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH) == 0){
+          g_isUartRestartRequired=0;
+        }
     }
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12); 
     //
@@ -197,7 +205,7 @@ int main(void)
     HAL_Delay(25);
     //HAL_ADC_Stop_DMA(&hadc);
     if(MPPT_Start(&hmppt)==MPPT_OK){
-      if(hmppt.isMpptManual==0){
+      if(hmppt.isMpptManual==0 && hmppt.isMpptSearchInitialRequest==0 && hmppt.isMpptSearchInProgress==0 ){
         if(MPPT_Adjust(&hmppt, +1)){
           MPPT_Adjust(&hmppt, -1);
         }
@@ -571,38 +579,38 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-  sTime.Hours = 0x6;
-  sTime.Minutes = 0x3;
-  sTime.Seconds = 0x0;
-  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_SUB1H;
+  sTime.Hours = 6;
+  sTime.Minutes = 3;
+  sTime.Seconds = 0;
+  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   sTime.StoreOperation = RTC_STOREOPERATION_RESET;
-  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
   {
     Error_Handler();
   }
   sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
   sDate.Month = RTC_MONTH_MARCH;
-  sDate.Date = 0x17;
-  sDate.Year = 0x0;
+  sDate.Date = 17;
+  sDate.Year = 0;
 
-  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
   {
     Error_Handler();
   }
   /** Enable the Alarm A
   */
-  sAlarm.AlarmTime.Hours = 0x0;
-  sAlarm.AlarmTime.Minutes = 0x0;
-  sAlarm.AlarmTime.Seconds = 0x0;
-  sAlarm.AlarmTime.SubSeconds = 0x0;
-  sAlarm.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_SUB1H;
+  sAlarm.AlarmTime.Hours = 0;
+  sAlarm.AlarmTime.Minutes = 0;
+  sAlarm.AlarmTime.Seconds = 0;
+  sAlarm.AlarmTime.SubSeconds = 0;
+  sAlarm.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   sAlarm.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
   sAlarm.AlarmMask = RTC_ALARMMASK_MINUTES|RTC_ALARMMASK_SECONDS;
   sAlarm.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_ALL;
   sAlarm.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
-  sAlarm.AlarmDateWeekDay = 0x1;
+  sAlarm.AlarmDateWeekDay = 1;
   sAlarm.Alarm = RTC_ALARM_A;
-  if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BCD) != HAL_OK)
+  if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BIN) != HAL_OK)
   {
     Error_Handler();
   }
@@ -918,16 +926,15 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   static uint32_t cnt=0;
+  hmppt.timer10ms=cnt;
   if( htim == &htim3 ){
-    if( (cnt % 12000) == 0 ){
-    //hmppt.isMpptSearchRequest=0xff;
-    //temporary test
-      HAL_UART_DMAStop(&huart1);
-      huart1.hdmarx->Instance->CNDTR = 0;
-      HAL_UARTEx_ReceiveToIdle_DMA(&huart1, g_request.buff, RECEIVED_DATA_MAX_LENGTH);
+    if( (cnt % 60000) == 0 ){
+      hmppt.isMpptSearchInitialRequest=0xff;
+      //temporary test
+      g_isUartRestartRequired=0xff;
     }
     if( (cnt % 100) == 0 ){
-      updateRealTimeValues();
+      updateRealTimeValues(&hmppt);
     }
     cnt++;
   }
