@@ -3,7 +3,15 @@ STM32F030C8T6 Firmware Created for Epever XTRA1210N MPPT solar charge controller
 
 This is firmware for MCU STM32F030 (heart of EPEVER solar charge controllers).
 ---
-WARNING: This is still under early development process. This is still for education purposes and do not expect working MPPT regulator without code changes !!! Author does not respond for possibly destroying Your device!
+WARNING: Author does not respond for possibly destroying Your device!
+What works:
+- charging 24 volts battery using MPPT algorithm
+- MPPS algorithm (search over the whole panel load curve for maximum power) once per 5 minutes
+
+What does not work
+- load switch
+- statistics: consumed energy per day
+- store statistics to the flash
 ---
 What is slightly implemented:
 - cs1621 chip driver for showing segments on XDS1 display
